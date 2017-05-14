@@ -25,5 +25,4 @@ $(call inherit-product, device/yu/tomato/device.mk)
 PRODUCT_DEVICE := tomato
 PRODUCT_NAME := full_tomato
 PRODUCT_BRAND := YU
-PRODUCT_MODEL := AO5510
 PRODUCT_MANUFACTURER := YU
