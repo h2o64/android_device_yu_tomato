@@ -22,3 +22,8 @@ PRODUCT_NAME := omni_tomato
 PRODUCT_BRAND := YU
 PRODUCT_MODEL := Yureka
 PRODUCT_MANUFACTURER := YU
+
+# Enable stock zip packages flash
+PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
+    ro.build.product=YUREKA \
+    ro.product.device=YUREKA
