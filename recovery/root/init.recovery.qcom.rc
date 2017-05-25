@@ -1,0 +1,107 @@
+on firmware_mounts_complete
+    rm /dev/.booting
+
+on init
+    chmod 0660 /dev/qseecom
+    chown system drmrpc /dev/qseecom
+    chmod 0664 /dev/ion
+    chown system system /dev/ion
+
+on late-init
+    # Remove a file to wake up anything waiting for firmware.
+    trigger firmware_mounts_complete
+
+    trigger boot
+
+on boot
+    # RPS mask
+    write /sys/class/net/rmnet0/queues/rx-0/rps_cpus 10
+
+    # HMP scheduler load tracking settings
+    write /proc/sys/kernel/sched_window_stats_policy 3
+    write /proc/sys/kernel/sched_ravg_hist_size 5
+
+    # HMP Task packing settings for 8916
+    write /proc/sys/kernel/sched_small_task 20
+    write /proc/sys/kernel/sched_mostly_idle_load 30
+    write /proc/sys/kernel/sched_mostly_idle_nr_run 3
+
+    write /sys/class/devfreq/qcom,cpubw.64/governor "bw_hwmon"
+    write /sys/class/devfreq/qcom,cpubw.64/bw_hwmon/io_percent 20
+    write /sys/class/devfreq/qcom,gpubw.61/governor "bw_hwmon"
+    write /sys/class/devfreq/qcom,gpubw.61/bw_hwmon/io_percent 40
+    write /sys/class/devfreq/qcom,mincpubw.65/governor "cpufreq"
+
+    # Disable thermal core_control to update interactive gov settings
+    write /sys/module/msm_thermal/core_control/enabled 0
+
+    # Enable governor for perf cluster
+    write /sys/devices/system/cpu/cpu0/online 1
+    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor "interactive"
+    write /sys/devices/system/cpu/cpu0/cpufreq/interactive/above_hispeed_delay "20000 1113600:50000"
+    write /sys/devices/system/cpu/cpu0/cpufreq/interactive/go_hispeed_load 85
+    write /sys/devices/system/cpu/cpu0/cpufreq/interactive/timer_rate 20000
+    write /sys/devices/system/cpu/cpu0/cpufreq/interactive/hispeed_freq 1113600
+    write /sys/devices/system/cpu/cpu0/cpufreq/interactive/io_is_busy 0
+    write /sys/devices/system/cpu/cpu0/cpufreq/interactive/target_loads "1 960000:85 1113600:90 1344000:80"
+    write /sys/devices/system/cpu/cpu0/cpufreq/interactive/min_sample_time 50000
+    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq 960000
+
+    # Enable governor for power cluster
+    write /sys/devices/system/cpu/cpu4/online 1
+    write /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor "interactive"
+    write /sys/devices/system/cpu/cpu4/cpufreq/interactive/above_hispeed_delay "25000 800000:50000"
+    write /sys/devices/system/cpu/cpu4/cpufreq/interactive/go_hispeed_load 90
+    write /sys/devices/system/cpu/cpu4/cpufreq/interactive/timer_rate 40000
+    write /sys/devices/system/cpu/cpu4/cpufreq/interactive/hispeed_freq 998400
+    write /sys/devices/system/cpu/cpu4/cpufreq/interactive/io_is_busy 0
+    write /sys/devices/system/cpu/cpu4/cpufreq/interactive/target_loads "1 800000:90"
+    write /sys/devices/system/cpu/cpu4/cpufreq/interactive/min_sample_time 40000
+    write /sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq 800000
+
+    # Enable thermal core_control now
+    write /sys/module/msm_thermal/core_control/enabled 1
+
+    # HMP scheduler (big.Little cluster related) settings
+    write /proc/sys/kernel/sched_upmigrate 75
+    write /proc/sys/kernel/sched_downmigrate 60
+
+    # bring all CPUs online
+    write /sys/devices/system/cpu/cpu1/online 1
+    write /sys/devices/system/cpu/cpu2/online 1
+    write /sys/devices/system/cpu/cpu3/online 1
+    write /sys/devices/system/cpu/cpu5/online 1
+    write /sys/devices/system/cpu/cpu6/online 1
+    write /sys/devices/system/cpu/cpu7/online 1
+
+    chown root system /sys/devices/system/cpu/cpu1/online
+    chown root system /sys/devices/system/cpu/cpu2/online
+    chown root system /sys/devices/system/cpu/cpu3/online
+    chown root system /sys/devices/system/cpu/cpu5/online
+    chown root system /sys/devices/system/cpu/cpu6/online
+    chown root system /sys/devices/system/cpu/cpu7/online
+    chmod 664 /sys/devices/system/cpu/cpu1/online
+    chmod 664 /sys/devices/system/cpu/cpu2/online
+    chmod 664 /sys/devices/system/cpu/cpu3/online
+    chmod 664 /sys/devices/system/cpu/cpu5/online
+    chmod 664 /sys/devices/system/cpu/cpu6/online
+    chmod 664 /sys/devices/system/cpu/cpu7/online
+
+service qseecomd /sbin/qseecomd
+    class core
+    user root
+    group root system drmrpc
+    seclabel u:r:recovery:s0
+    disabled
+
+on property:ro.crypto.state=encrypted
+    start qseecomd
+
+# used only for bringing up decrypt and keeping it around for future ref
+service logd /system/bin/logd
+    disabled
+    class core
+    socket logd stream 0666 logd logd
+    socket logdr seqpacket 0666 logd logd
+    socket logdw dgram 0222 logd logd
+    group root system
