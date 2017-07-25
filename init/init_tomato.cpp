@@ -78,4 +78,11 @@ void init_target_properties()
         property_set("dalvik.vm.heapminfree", "512k");
         property_set("dalvik.vm.heapmaxfree", "8m");
     }
+
+    char baseband[128];
+    FILE *fp = popen("/system/bin/strings /firmware/image/modem.b18 | /system/bin/grep '^MPSS.DPM' | /system/bin/head -1", "r");
+    fgets(baseband, sizeof(baseband), fp);
+    pclose(fp);
+    ERROR("INIT-DEBUG: Baseband is '%s'\n", &baseband);
+    property_set("gsm.version.baseband", baseband);
 }
